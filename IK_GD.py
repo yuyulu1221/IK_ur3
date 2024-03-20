@@ -5,22 +5,20 @@ import dill
 class IK_GD(object):
 	def __init__(self):
 		self.f_new = dill.load(open("Jacobian", "rb"))
-	
-	def _get_jacob_mat(self, th1, th2, th3, th4, th5, th6) -> np.ndarray:
-		return self.f_new(th1, th2, th3, th4, th5, th6).astype('float64')	
 
 	def run(self) -> np.ndarray:
 		angles = [0, 0, 0, 0, 0, 0]
 		p, r = self.demo(0)
 		out, angles = self._compute(angles, p, r)
 
-		for i in range(1, 2):
+		for i in range(1, 3):
+			print(i)
 			p, r = self.demo(i)
 			a, angles = self._compute(angles, p, r)
 			out = np.r_[out, a]
 
-		print(out)
-			
+		# print(out)
+ 		
 	def demo(self, target: int) -> list:
 		match target:
 			case 0:
@@ -33,10 +31,10 @@ class IK_GD(object):
 				r2 = [-180, 0, -180]
 				return p2, r2
 
-			# case 2:
-			# 	p3 = [-0.21,-0.24, 0.326]
-			# 	r3 = [-180, 0, -180]
-			# 	return p3, r3
+			case 2:
+				p3 = [-0.21,-0.24, 0.326]
+				r3 = [-180, 0, -180]
+				return p3, r3
 
 			# case 3:
 			# 	p4 = [-0.21,-0.24, 0.326]
@@ -91,6 +89,9 @@ class IK_GD(object):
 				R, np.array([x,y,z])
 			], [np.array([0,0,0,1])]
 		]
+	
+	def _get_jacob_mat(self, th1, th2, th3, th4, th5, th6) -> np.ndarray:
+		return self.f_new(th1, th2, th3, th4, th5, th6).astype('float64')	
 
 	def _fwd_kinematic(self, th: np.ndarray) -> np.ndarray:
 		"""
@@ -131,31 +132,41 @@ class IK_GD(object):
   
 		trans_mat_target = self._comp_trans_mat_target(target)
 		trans_mat_current = self._fwd_kinematic(q[i,:])
+		print("init: ", trans_mat_current)
+		print("targ: ", trans_mat_target)
   
 		# error computation
 		error = np.linalg.norm(trans_mat_current - trans_mat_target)	
+		error = np.linalg.norm(trans_mat_current[0,3] - trans_mat_target[0,3])	
+		print("error: ", error)
   
 		while error > 0.001:
-            # J_comp: get Jacobian matrix
 			jacob_mat = self._get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
-			# hesse_mat_approx = jacob_mat.T @ np.eye(6,6) @ jacob_mat
-			# g_k = jacob_mat.T @ np.eye(6,6) @ self._get_angle_axis(trans_mat_target, trans_mat_current)
+			sk = 1
+			min_err = np.inf
+			q_min = np.array([])
+			for j in range(6):
+				tmp = q[i,:] - jacob_mat[j,:] * sk
+				# compute new error
+				trans_mat_current = self._fwd_kinematic(tmp)
+				error = np.linalg.norm(trans_mat_current - trans_mat_target)
+				error = np.linalg.norm(trans_mat_current[0,3] - trans_mat_target[0,3])
 
-			# if (np.linalg.det(jacob_mat)!=0):
-			q = np.r_[q, q[i,:] - (jacob_mat.T @ np.array([.2, .2, .2, .5, .5, .5]).T).T]
+				if error < min_err:
+					q_min = tmp
+					min_err = error
 
-			# compute new error
-			trans_mat_current = self._fwd_kinematic(q[-1,:])
-			error = np.linalg.norm(trans_mat_current - trans_mat_target)
+			q = np.r_[q, [q_min]]
 
-			# limit computed joint from 360° to 180° -> prevent some self collision 
-			if(np.any(q[-1,:] > pi) or np.any(q[i+1,:] < -pi)): 
-				l = np.argwhere(q[-1,:] > pi)
-				k = np.argwhere(q[-1,:] < -pi)
-				q[-1,l] = q[i,l]
-				q[-1,k] = q[i,k]
+				# limit computed joint from 360° to 180° -> prevent some self collision 
+				# if(np.any(q[-1,:] > pi) or np.any(q[i+1,:] < -pi)): 
+				# 	l = np.argwhere(q[-1,:] > pi)
+				# 	k = np.argwhere(q[-1,:] < -pi)
+				# 	q[-1,l] = q[i,l]
+				# 	q[-1,k] = q[i,k]
 
 			i += 1
+			print(f"iter= {i}, error= {error}")
 
 		goal = q[-1,:]
 

@@ -32,6 +32,7 @@ class IK_LM(object):
             a, angles = self.__compute(angles, p, r)
             out = np.r_[out, a]
 
+        print(out)
         return out
 
     def demo(self, target: int) -> list:
@@ -264,3 +265,6 @@ class IK_LM(object):
             a[:,i] = np.linspace(np.rad2deg(angles[i]), np.rad2deg(goal[i]), nr_pnts)
 
         return a, np.rad2deg(goal)
+    
+solver = IK_LM()
+solver.LM()
