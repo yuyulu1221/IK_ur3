@@ -14,7 +14,9 @@ class IK_LM(object):
         Load dill file with Jacobian matrix for defined robot.
 
         """
+        print("IKLM_init")
         self.f_new = dill.load(open("Jacobian", "rb"))
+        print("???")
         
     def LM(self) -> np.ndarray:
         """
@@ -212,32 +214,60 @@ class IK_LM(object):
 
         # error computation
         error = np.linalg.norm(trans_mat_current - trans_mat_target)
-
+        # error = np.linalg.norm(trans_mat_current[:3,:] - trans_mat_target[:3,:])
+        
         # do until error will be in specified accuracy
         while error > 0.001:
-            # J_comp: get Jacobian matrix
+            # LM method
+            # jacob_mat = self._get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
+            # hesse_mat_approx = jacob_mat.T @ np.eye(6,6) @ jacob_mat
+            # g_k = jacob_mat.T @ np.eye(6,6) @ self._get_angle_axis(trans_mat_target, trans_mat_current)
+
+            # if (np.linalg.det(jacob_mat)!=0):
+            #     q = np.r_[q, q[i,:] + (np.linalg.inv(hesse_mat_approx) @ g_k).T]
+
+            # else: # calculate the pseudoinverse
+            #     q = np.r_[q, q[i,:] + (np.linalg.pinv(hesse_mat_approx) @ g_k).T]
+
+            # # compute new error
+            # trans_mat_current = self._fwd_kinematic(q[-1,:])
+            # error = np.linalg.norm(trans_mat_current - trans_mat_target)
+
+            # # limit computed joint from 360° to 180° -> prevent some self collision 
+            # if(np.any(q[-1,:] > pi) or np.any(q[i+1,:] < -pi)): 
+            #     l = np.argwhere(q[-1,:] > pi)
+            #     k = np.argwhere(q[-1,:] < -pi)
+            #     q[-1,l] = q[i,l]
+            #     q[-1,k] = q[i,k]
+
+            # i += 1
+            
             jacob_mat = self._get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
-            hesse_mat_approx = jacob_mat.T @ np.eye(6,6) @ jacob_mat
-            g_k = jacob_mat.T @ np.eye(6,6) @ self._get_angle_axis(trans_mat_target, trans_mat_current)
+            
+            sk = 0.8
+
+            orient = self._get_angle_axis(trans_mat_target, trans_mat_current)
 
             if (np.linalg.det(jacob_mat)!=0):
-                q = np.r_[q, q[i,:] + (np.linalg.inv(hesse_mat_approx) @ g_k).T]
-
-            else: # calculate the pseudoinverse
-                q = np.r_[q, q[i,:] + (np.linalg.pinv(hesse_mat_approx) @ g_k).T]
+                tmp = q[-1,:] + (np.linalg.inv(jacob_mat) @ orient).T[0,:] * sk
+            else:
+                tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] * sk
 
             # compute new error
-            trans_mat_current = self._fwd_kinematic(q[-1,:])
+            trans_mat_current = self._fwd_kinematic(tmp)
+            
             error = np.linalg.norm(trans_mat_current - trans_mat_target)
-
+            q = np.r_[q, [tmp]]
+            
             # limit computed joint from 360° to 180° -> prevent some self collision 
             if(np.any(q[-1,:] > pi) or np.any(q[i+1,:] < -pi)): 
                 l = np.argwhere(q[-1,:] > pi)
                 k = np.argwhere(q[-1,:] < -pi)
                 q[-1,l] = q[i,l]
                 q[-1,k] = q[i,k]
-
+            
             i += 1
+            print(f"iter= {i}, error= {error}")
 
         """
         ! Check Correctness purpose
@@ -266,5 +296,5 @@ class IK_LM(object):
 
         return a, np.rad2deg(goal)
     
-solver = IK_LM()
-solver.LM()
+# solver = IK_LM()
+# solver.LM()

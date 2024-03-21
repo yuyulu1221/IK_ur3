@@ -4,6 +4,10 @@ import dill
 
 class IK_GD(object):
 	def __init__(self):
+		# with open("Jacob.pkl", "wb") as d:
+		# 	tmp = dill.load(open("Jacobian", "rb"))
+		# 	dill.dump(tmp, d)
+
 		self.f_new = dill.load(open("Jacobian", "rb"))
 
 	def run(self) -> np.ndarray:
@@ -17,7 +21,7 @@ class IK_GD(object):
 			a, angles = self._compute(angles, p, r)
 			out = np.r_[out, a]
 
-		# print(out)
+		print(out)
  		
 	def demo(self, target: int) -> list:
 		match target:
@@ -36,15 +40,15 @@ class IK_GD(object):
 				r3 = [-180, 0, -180]
 				return p3, r3
 
-			# case 3:
-			# 	p4 = [-0.21,-0.24, 0.326]
-			# 	r4 = [-29, 52, -140]
-			# 	return p4, r4
+			case 3:
+				p4 = [-0.21,-0.24, 0.326]
+				r4 = [-29, 52, -140]
+				return p4, r4
 
-			# case 4:
-			# 	p4 = [-0.21,-0.413, 0.326]
-			# 	r4 = [-29, 52, -140]
-			# 	return p4, r4
+			case 4:
+				p4 = [-0.21,-0.413, 0.326]
+				r4 = [-29, 52, -140]
+				return p4, r4
             
 			case _:
 				raise ("No exist target")
@@ -122,6 +126,46 @@ class IK_GD(object):
 		
 		return A
 
+	def _get_orient(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
+		"""
+		Computation angle-axis distance
+
+		:param T_desired: d-h table of target
+		:param T_current: d-h table current state
+		:returns: 6x1 array translation, rotation  
+		"""
+		Td = T_desired[:3,3]
+		Ti = T_current[:3,3]
+
+		Rd = T_desired[:3,:3]
+		Ri = T_current[:3,:3]
+
+		R = Rd @ Ri.T
+		
+		l = np.array([ 
+			[R[2,1] - R[1,2]],
+			[R[0,2] - R[2,0]],
+			[R[1,0] - R[0,1]]
+		])
+		
+		l_length = np.linalg.norm(l)
+
+		if(l_length > 0):
+			a = ((arctan2(l_length, R[0,0] + R[1,1] + R[2,2] - 1 ) ) / l_length) * l
+
+		else:  
+			if(R[0,0] + R[1,1] + R[2,2] > 0):
+				a = np.array([[0,0,0]]).T
+			
+			else:
+				a = pi/2 * np.array([[
+					R[0,0] + 1,
+					R[1,1] + 1,
+					R[2,2] + 1
+				]]).T
+		
+		return np.r_[np.array([Td-Ti]).T, a]
+ 
 	def _compute(self, angles: list, target_pos: list, target_rot: list) -> np.ndarray:
 		angles = np.deg2rad(angles)
 		target_rot = np.deg2rad(target_rot)
@@ -132,51 +176,29 @@ class IK_GD(object):
   
 		trans_mat_target = self._comp_trans_mat_target(target)
 		trans_mat_current = self._fwd_kinematic(q[i,:])
-		print("init: ", trans_mat_current)
-		print("targ: ", trans_mat_target)
   
 		# error computation
 		error = np.linalg.norm(trans_mat_current - trans_mat_target)	
-		# error = np.linalg.norm(trans_mat_current[:3,3] - trans_mat_target[:3,3])	
-		print("error: ", error)
-
-		mmt = 0.9
   
-		while error > 0.01:
+		while error > 0.002:
+      
 			jacob_mat = self._get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
-			sk = 0.8
-			min_err = 9999999
-			q_min = np.array([])
-			dist = trans_mat_target - self._fwd_kinematic(q[i,:])
+			
+			step_size = 0.6
+   
+			orient = self._get_orient(trans_mat_target, trans_mat_current)
 
-			for j in range(6):
-				if j < 3:
-					tmp = q[i,:] + jacob_mat[j,:] * sk * dist[j, 3]
-				else:
-					tmp = q[i,:] + jacob_mat[j,:] * sk * dist[j, 3]
-    
-				# compute new error
-				trans_mat_current = self._fwd_kinematic(tmp)
-				error = np.linalg.norm(trans_mat_current - trans_mat_target)
-				# error = np.linalg.norm(trans_mat_current[:3,3] - trans_mat_target[:3,3])
-    
-				if error < min_err:
-					q_min = tmp
-					min_err = error
-					prev = - jacob_mat[j,:] * sk
+			tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] * step_size
 
-			q = np.r_[q, [q_min]]
+			# compute new error
+			trans_mat_current = self._fwd_kinematic(tmp)
+			
+			error = np.linalg.norm(trans_mat_current - trans_mat_target)
 
-				# limit computed joint from 360° to 180° -> prevent some self collision 
-				# if(np.any(q[-1,:] > pi) or np.any(q[i+1,:] < -pi)): 
-				# 	l = np.argwhere(q[-1,:] > pi)
-				# 	k = np.argwhere(q[-1,:] < -pi)
-				# 	q[-1,l] = q[i,l]
-				# 	q[-1,k] = q[i,k]
+			q = np.r_[q, [tmp]]
 
 			i += 1
 			print(f"iter= {i}, error= {error}")
-			
 
 		goal = q[-1,:]
 
