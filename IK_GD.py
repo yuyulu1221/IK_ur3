@@ -137,24 +137,33 @@ class IK_GD(object):
   
 		# error computation
 		error = np.linalg.norm(trans_mat_current - trans_mat_target)	
-		error = np.linalg.norm(trans_mat_current[0,3] - trans_mat_target[0,3])	
+		# error = np.linalg.norm(trans_mat_current[:3,3] - trans_mat_target[:3,3])	
 		print("error: ", error)
+
+		mmt = 0.9
   
-		while error > 0.001:
+		while error > 0.01:
 			jacob_mat = self._get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
-			sk = 1
-			min_err = np.inf
+			sk = 0.8
+			min_err = 9999999
 			q_min = np.array([])
+			dist = trans_mat_target - self._fwd_kinematic(q[i,:])
+
 			for j in range(6):
-				tmp = q[i,:] - jacob_mat[j,:] * sk
+				if j < 3:
+					tmp = q[i,:] + jacob_mat[j,:] * sk * dist[j, 3]
+				else:
+					tmp = q[i,:] + jacob_mat[j,:] * sk * dist[j, 3]
+    
 				# compute new error
 				trans_mat_current = self._fwd_kinematic(tmp)
 				error = np.linalg.norm(trans_mat_current - trans_mat_target)
-				error = np.linalg.norm(trans_mat_current[0,3] - trans_mat_target[0,3])
-
+				# error = np.linalg.norm(trans_mat_current[:3,3] - trans_mat_target[:3,3])
+    
 				if error < min_err:
 					q_min = tmp
 					min_err = error
+					prev = - jacob_mat[j,:] * sk
 
 			q = np.r_[q, [q_min]]
 
@@ -167,6 +176,7 @@ class IK_GD(object):
 
 			i += 1
 			print(f"iter= {i}, error= {error}")
+			
 
 		goal = q[-1,:]
 
