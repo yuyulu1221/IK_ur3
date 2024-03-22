@@ -248,10 +248,10 @@ class IK_LM(object):
 
             orient = self._get_angle_axis(trans_mat_target, trans_mat_current)
 
-            if (np.linalg.det(jacob_mat)!=0):
-                tmp = q[-1,:] + (np.linalg.inv(jacob_mat) @ orient).T[0,:] * sk
-            else:
-                tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] * sk
+            # if (np.linalg.det(jacob_mat)!=0):
+            tmp = q[-1,:] + (np.linalg.inv(jacob_mat) @ orient).T[0,:] * sk
+            # else:
+            #     tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] * sk
 
             # compute new error
             trans_mat_current = self._fwd_kinematic(tmp)

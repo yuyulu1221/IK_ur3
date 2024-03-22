@@ -173,19 +173,18 @@ class IK_GD(object):
   
 		# error computation
 		error = np.linalg.norm(trans_mat_current - trans_mat_target)	
-		# step_size_descent_rate = 0.999
-		step_size = 0.8
+
+		step_size_descent_rate = 0.999
+		step_size = 1.2
   
-		while error > 0.001 and i < 10000:
+		while error > 0.001:
+      
 			jacob_mat = self._get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
 
 			orient = self._get_orient(trans_mat_target, trans_mat_current)
 
-			# step_size = step_size * step_size_descent_rate
+			step_size = step_size * step_size_descent_rate
 
-			# if (np.linalg.det(jacob_mat)!=0):
-			# 	tmp = q[-1,:] + (np.linalg.inv(jacob_mat) @ orient).T[0,:] * step_size
-			# else:
 			tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] * step_size
 
 			# compute new error
@@ -198,10 +197,8 @@ class IK_GD(object):
 			i += 1
 			print(f"iter= {i}, error= {error}")
 
-		goal = q[-1,:] if i<10000 else None
-		if goal == None:
-			return 
-  
+		goal = q[-1,:]
+
 		# generate simple path, with 100 samples
 		nr_pnts = 100
 		a = np.zeros((nr_pnts, 6))
