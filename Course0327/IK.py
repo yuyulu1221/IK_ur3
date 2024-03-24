@@ -1,15 +1,13 @@
+#%% import module
 import numpy as np
 from numpy import pi, cos, sin, arctan2
 import dill
 from Jacob import Jacob
 
-class IK_GD(object):
+#%% IK class
+class IK(object):
 	def __init__(self):
-		# with open("Jacob.pkl", "wb") as d:
-		# 	tmp = dill.load(open("Jacobian", "rb"))
-		# 	dill.dump(tmp, d)
 		self.Jacob = Jacob()
-		# self.f_new = dill.load(open("Jacobian", "rb"))
 
 	def run(self) -> np.ndarray:
 		angles = [0, 0, 0, 0, 0, 0]
@@ -206,6 +204,7 @@ class IK_GD(object):
 			a[:,i] = np.linspace(np.rad2deg(angles[i]), np.rad2deg(goal[i]), nr_pnts)
 
 		return a, np.rad2deg(goal)
-  
-IK_solver = IK_GD()
-IK_solver.run()
+
+if __name__ == "__main__":  
+	IK_solver = IK()
+	IK_solver.run()
