@@ -110,6 +110,7 @@ class IK_LM(object):
                 A = A @ A_x 
         
         return A
+    
 
     def _comp_trans_mat_target(self, target: np.ndarray) -> np.ndarray:
         """

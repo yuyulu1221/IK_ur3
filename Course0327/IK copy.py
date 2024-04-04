@@ -6,23 +6,21 @@ from Jacob import Jacob
 
 #%% IK class
 class IK(object):
-	def __init__(self, pos=[0.0, -0.24, 0.24], rot=[-180, 0, -180]):
+	def __init__(self):
 		self.Jacob = Jacob()
-		self.pos = pos
-		self.rot = rot
 
 	def run(self) -> np.ndarray:
 		angles = [0, 0, 0, 0, 0, 0]
-		# p, r = self.demo(0)
-		print(self._compute(angles, self.pos, self.rot))
+		p, r = self.demo(0)
+		out, angles = self._compute(angles, p, r)
 
-		# for i in range(1, 3):
-		# 	print(i)
-		# 	p, r = self.demo(i)
-		# 	a, angles = self._compute(angles, p, r)
-		# 	out = np.r_[out, a]
+		for i in range(1, 3):
+			print(i)
+			p, r = self.demo(i)
+			a, angles = self._compute(angles, p, r)
+			out = np.r_[out, a]
 
-		# print(out)
+		print(out)
  		
 	def demo(self, target: int) -> list:
 		match target:
@@ -101,8 +99,8 @@ class IK(object):
 		"""
 		# D-H parameters of UR3
 		o = [pi/2, 0, 0, pi/2, -pi/2, 0] # Link twist
-		d = [0.1519, 0, 0, 0.13105, 0.08535, 0.0921] # Link Offset
-		a = [0, -0.24355, -0.2132, 0, 0, 0] # Link Length
+		d = [0.1519, 0, 0, 0.11235, 0.08535, 0.0819] # Link Offset
+		a = [0, -0.24365, -0.21325, 0, 0, 0] # Link Length
 		
 		# Using D-H table to generate transformation matrices
 		for i in range(6):
@@ -190,23 +188,22 @@ class IK(object):
 			
 			# compute the error with transformation matrix
 			error = np.linalg.norm(trans_mat_current - trans_mat_target)
-   
-   
+
 			q = np.r_[q, [tmp]]
-   
-			# limit computed joint from 360° to 180° -> prevent some self collision 
-			if(np.any(q[-1,:] > pi) or np.any(q[i+1,:] < -pi)): 
-				l = np.argwhere(q[-1,:] > pi)
-				k = np.argwhere(q[-1,:] < -pi)
-				q[-1,l] = q[i,l]
-				q[-1,k] = q[i,k]
 
 			i += 1
 			print(f"iter= {i}, error= {error}")
 
 		goal = q[-1,:]
+  
+		# generate simple path, with 100 samples
+		nr_pnts = 100
+		a = np.zeros((nr_pnts, 6))
 
-		return np.rad2deg(goal)
+		for i in range(5):
+			a[:,i] = np.linspace(np.rad2deg(angles[i]), np.rad2deg(goal[i]), nr_pnts)
+
+		return a, np.rad2deg(goal)
 
 if __name__ == "__main__":  
 	IK_solver = IK()
