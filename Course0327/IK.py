@@ -6,82 +6,26 @@ from Jacob import Jacob
 
 #%% IK class
 class IK(object):
-	def __init__(self, pos=[0.0, -0.24, 0.24], rot=[-180, 0, -180]):
+	def __init__(self, angles=[0,0,0,0,0,0], pos=[0.0, -0.24, 0.24], rot=[-180, 0, -180]):
 		self.Jacob = Jacob()
+		self.angles = np.deg2rad(angles)
 		self.pos = pos
 		self.rot = rot
 
+	def test(self):
+		print(self._fwd_kinematic(self.angles))
+		print(self.axis_angle_2_rot_mat(self.rot))
+
+	
 	def run(self) -> np.ndarray:
-		angles = [0, 0, 0, 0, 0, 0]
-		# p, r = self.demo(0)
-		print(self._compute(angles, self.pos, self.rot))
-
-		# for i in range(1, 3):
-		# 	print(i)
-		# 	p, r = self.demo(i)
-		# 	a, angles = self._compute(angles, p, r)
-		# 	out = np.r_[out, a]
-
-		# print(out)
- 		
-	def demo(self, target: int) -> list:
-		match target:
-			case 0:
-				p1 = [0.0, -0.194, 0.69]
-				r1 = [-90, 0, -180]
-				return p1, r1
-
-			case 1:
-				p2 = [-0.21, -0.24, 0.2]
-				r2 = [-180, 0, -180]
-				return p2, r2
-
-			case 2:
-				p3 = [-0.21,-0.24, 0.326]
-				r3 = [-180, 0, -180]
-				return p3, r3
-
-			case 3:
-				p4 = [-0.21,-0.24, 0.326]
-				r4 = [-29, 52, -140]
-				return p4, r4
-
-			case 4:
-				p4 = [-0.21,-0.413, 0.326]
-				r4 = [-29, 52, -140]
-				return p4, r4
-            
-			case _:
-				raise ("No exist target")
+		print(self._compute(self.angles, self.pos, self.rot))
 
 	def _get_target_trans_mat(self, target: np.ndarray) -> np.ndarray:
 		x = target[0]
 		y = target[1]
 		z = target[2]
-		
-		alfa = target[3]
-		beta = target[4]
-		gamma = target[5]
-		
-		R_x = np.array([
-			[1, 0,           0        ],
-			[0, cos(alfa),  -sin(alfa)],
-			[0, sin(alfa),   cos(alfa)] 
-		])
-		
-		R_y = np.array([
-			[cos(beta),  0, sin(beta)],
-			[0,          1, 0        ],
-			[-sin(beta), 0, cos(beta)] 
-		])
-		
-		R_z = np.array([
-			[cos(gamma), -sin(gamma),  0], 
-			[sin(gamma),  cos(gamma),  0],
-			[0,           0,           1]
-		])
-
-		R = R_z @ R_y @ R_x
+  
+		R = self.axis_angle_2_rot_mat(target[3:6])
 
 		return np.r_[
 			np.c_[
@@ -99,7 +43,7 @@ class IK(object):
 		:param th: joints angle
 		:returns: 4x4 transformation matrix
 		"""
-		# D-H parameters of UR3
+		# D-H parameters of UR3e
 		o = [pi/2, 0, 0, pi/2, -pi/2, 0] # Link twist
 		d = [0.1519, 0, 0, 0.13105, 0.08535, 0.0921] # Link Offset
 		a = [0, -0.24355, -0.2132, 0, 0, 0] # Link Length
@@ -119,24 +63,27 @@ class IK(object):
 			else:
 				A = A @ A_x 
 		
-		return A
+		return A.round(4)
 
-	def _get_orient(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
-		"""
-		Computation angle-axis distance
+	def axis_angle_2_rot_mat(self, axis_angle):
+		th = np.linalg.norm(axis_angle)
+		axis_angle /= th		
+		# th = np.rad2deg(th)
+		Rx = axis_angle[0]
+		Ry = axis_angle[1]
+		Rz = axis_angle[2]
+  
+		R_mat = np.array([
+			[cos(th)+Rx**2*(1-cos(th)), 	Rx*Ry*(1-cos(th))-Rz*sin(th), 	Rx*Rz*(1-cos(th))+Ry*sin(th)],
+			[Ry*Rx*(1-cos(th))+Rz*sin(th),	cos(th)+Ry**2*(1-cos(th)),		Ry*Rz*(1-cos(th))-Rx*sin(th)],
+			[Rz*Rx*(1-cos(th))-Ry*sin(th),	Rz*Ry*(1-cos(th))+Rx*sin(th),	cos(th)+Rz**2*(1-cos(th))]
+		])
 
-		:param T_desired: d-h table of target
-		:param T_current: d-h table current state
-		:returns: 6x1 array translation, rotation  
-		"""
-		Td = T_desired[:3,3]
-		Ti = T_current[:3,3]
+		return R_mat.round(4)
 
-		Rd = T_desired[:3,:3]
-		Ri = T_current[:3,:3]
-
-		R = Rd @ Ri.T
+	def rot_mat_2_axis_angle(self, Rd, Ri) -> np.ndarray:
 		
+		R = Rd @ Ri.T
 		l = np.array([ 
 			[R[2,1] - R[1,2]],
 			[R[0,2] - R[2,0]],
@@ -146,7 +93,13 @@ class IK(object):
 		l_length = np.linalg.norm(l)
 
 		if(l_length > 0):
+			# print("???")
 			a = ((arctan2(l_length, R[0,0] + R[1,1] + R[2,2] - 1 ) ) / l_length) * l
+			# a = [
+       		# 	[(R[2, 1] - R[1, 2]) / l_length * pi],
+          	# 	[(R[0, 2] - R[2, 0]) / l_length * pi],
+   			# 	[(R[1, 0] - R[0, 1]) / l_length * pi]
+   			# ]
 
 		else:  
 			if(R[0,0] + R[1,1] + R[2,2] > 0):
@@ -158,8 +111,24 @@ class IK(object):
 					R[1,1] + 1,
 					R[2,2] + 1
 				]]).T
+    
+		return a
+
+	def _get_orient(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
+		"""
+		:param T_desired: d-h table of target
+		:param T_current: d-h table current state
+		:returns: 6x1 array translation + rotation  
+		"""
+		Td = T_desired[:3,3]
+		Ti = T_current[:3,3]
+
+		Rd = T_desired[:3,:3]
+		Ri = T_current[:3,:3]
+
+		R = self.rot_mat_2_axis_angle(Rd, Ri)
 		
-		return np.r_[np.array([Td-Ti]).T, a]
+		return np.r_[np.array([Td-Ti]).T, R]	
  
 	def _compute(self, angles: list, target_pos: list, target_rot: list) -> np.ndarray:
 		angles = np.deg2rad(angles)
@@ -209,5 +178,22 @@ class IK(object):
 		return np.rad2deg(goal)
 
 if __name__ == "__main__":  
-	IK_solver = IK()
-	IK_solver.run()
+	np.set_printoptions(suppress=True)
+	# ori_joint_angles = input("Enter the origin joint angles: ").split()
+	# ori_joint_angles = list(map(lambda x: float(x), ori_joint_angles))
+ 
+	# tcp_pos = input("Enter the TCP position: ").split()
+	# tcp_pos = list(map(lambda x: float(x) / 1000, tcp_pos))
+	# tcp_rot = input("Enter the TCP rot: ").split()
+	# tcp_rot = list(map(lambda x: np.rad2deg(float(x)), tcp_rot))
+	# print(tcp_pos)
+	# print(tcp_rot)
+	
+	# IK_solver = IK(ori_joint_angles, tcp_pos, tcp_rot)
+	# IK_solver.run()
+	IK_solver = IK(
+     	angles=[-91.51, -98.47, -109.73, -63.28, 91.40, 358.42],
+		pos = [-136.86, -303.22, 197.79],
+		rot = [0.001, -3.166, -0.040]
+    )
+	IK_solver.test()
