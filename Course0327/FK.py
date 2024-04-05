@@ -1,12 +1,10 @@
 #%% import module
 import numpy as np
 from numpy import pi, cos, sin, arctan2
-import dill
-from Jacob import Jacob
 
 #%% FK class
 class FK(object):
-	def __init__(self, th=[-91.71, -98.96, -126.22, -46.29, 91.39, 358.22]):
+	def __init__(self, th):
 		self.th = np.deg2rad(th)
 		
 	def fwd_kinematic(self, th: np.ndarray) -> np.ndarray:
@@ -39,7 +37,6 @@ class FK(object):
 		return A	
 
 	def rot_mat_2_axis_angle(self, Rd, Ri) -> np.ndarray:
-		
 		R = Rd @ Ri.T
 		l = np.array([ 
 			[R[2,1] - R[1,2]],
@@ -50,13 +47,7 @@ class FK(object):
 		l_length = np.linalg.norm(l)
 
 		if(l_length > 0):
-			# print("???")
 			a = ((arctan2(l_length, R[0,0] + R[1,1] + R[2,2] - 1 ) ) / l_length) * l
-			# a = [
-       		# 	[(R[2, 1] - R[1, 2]) / l_length * pi],
-          	# 	[(R[0, 2] - R[2, 0]) / l_length * pi],
-   			# 	[(R[1, 0] - R[0, 1]) / l_length * pi]
-   			# ]
 
 		else:  
 			if(R[0,0] + R[1,1] + R[2,2] > 0):
@@ -71,14 +62,15 @@ class FK(object):
     
 		return a
 
-	def _get_orient(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
+	def get_orient(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
 		"""
 		:param T_desired: d-h table of target
 		:param T_current: d-h table current state
 		:returns: 6x1 array translation + rotation  
 		"""
-		Td = T_desired[:3,3]
-		Ti = T_current[:3,3]
+		# m -> mm
+		Td = T_desired[:3,3] * 1000 
+		Ti = T_current[:3,3] * 1000
 
 		Rd = T_desired[:3,:3]
 		Ri = T_current[:3,:3]
@@ -89,14 +81,11 @@ class FK(object):
 
 	def run(self):
 		t_mat = self.fwd_kinematic(self.th)
-		print(t_mat)
-		print(np.eye(4))
-		posture = self._get_orient(t_mat, np.eye(4))
-		print(posture)
+		posture = self.get_orient(t_mat, np.eye(4))
+		print(posture.round(3))
 
-if __name__ == "__main__":  
-	ths = input("Enter the rotation angles of the 6 joints: ").split()
-	th_list = list(map(lambda x:float(x), ths))
-	FK_solver = FK(th_list)
-	# FK_solver = FK()
-	FK_solver.run()
+#%% main
+np.set_printoptions(suppress=True)
+joint_angles = [-110, -110, -75, -90, 130, 0]
+FK_solver = FK(joint_angles)
+FK_solver.run()
