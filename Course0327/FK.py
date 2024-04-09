@@ -16,7 +16,7 @@ class FK(object):
 		"""
 		# D-H parameters of UR3e
 		o = [pi/2, 0, 0, pi/2, -pi/2, 0] # Link twist
-		d = [0.1519, 0, 0, 0.13105, 0.08535, 0.0921] # Link Offset
+		d = [0.15185, 0, 0, 0.13105, 0.08535, 0.0921] # Link Offset
 		a = [0, -0.24355, -0.2132, 0, 0, 0] # Link Length
 		
 		# Using D-H table to generate transformation matrices
@@ -62,7 +62,7 @@ class FK(object):
     
 		return a
 
-	def get_orient(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
+	def get_posture_diff(self, T_desired: np.ndarray, T_current: np.ndarray) -> np.ndarray:
 		"""
 		:param T_desired: d-h table of target
 		:param T_current: d-h table current state
@@ -81,11 +81,16 @@ class FK(object):
 
 	def run(self):
 		t_mat = self.fwd_kinematic(self.th)
-		posture = self.get_orient(t_mat, np.eye(4))
+		print("Transformation matrix:")
+		print(t_mat)
+		posture = self.get_posture_diff(t_mat, np.eye(4))
+		print("\nTCP posture:")
 		print(posture.round(3))
 
 #%% main
 np.set_printoptions(suppress=True)
-joint_angles = [-110, -110, -75, -90, 130, 0]
+joint_angles = [10, -20, -30, 40, 50, 60]
 FK_solver = FK(joint_angles)
 FK_solver.run()
+
+# %%

@@ -39,7 +39,7 @@ class IK(object):
 		"""
 		# D-H parameters of UR3e
 		o = [pi/2, 0, 0, pi/2, -pi/2, 0] # Link twist
-		d = [0.1519, 0, 0, 0.13105, 0.08535, 0.0921] # Link Offset
+		d = [0.15185, 0, 0, 0.13105, 0.08535, 0.0921] # Link Offset
 		a = [0, -0.24355, -0.2132, 0, 0, 0] # Link Length
 		
 		# Using D-H table to generate transformation matrices
