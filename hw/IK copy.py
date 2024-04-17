@@ -132,24 +132,21 @@ class IK(object):
 		trans_mat_current = self.fwd_kinematic(q[i,:])
   
 		# error computation
-		error = np.linalg.norm(trans_mat_current - trans_mat_target)
-  	
-		# step_size_descent_rate = 0.999
-		step_size = 0.8
+		error = np.linalg.norm(trans_mat_current[:3, 3] - trans_mat_target[:3, 3])
   
-		while error > 0.002:
+		while error > 0.001:
 			jacob_mat = self.get_jacob_mat(q[i,0],q[i,1],q[i,2],q[i,3],q[i,4],q[i,5])
 
 			# compute the difference between target and current state
 			orient = self.get_orient(trans_mat_target, trans_mat_current)
-
-			tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] * step_size
+			orient[3:6] = [[0], [0], [0]]
+			tmp = q[-1,:] + (np.linalg.pinv(jacob_mat) @ orient).T[0,:] 
 
 			# compute new error
 			trans_mat_current = self.fwd_kinematic(tmp)
 			
 			# compute the error with transformation matrix
-			error = np.linalg.norm(trans_mat_current - trans_mat_target)
+			error = np.linalg.norm(trans_mat_current[:3, 3] - trans_mat_target[:3, 3])
    
 			q = np.r_[q, [tmp]]
    
@@ -168,13 +165,16 @@ class IK(object):
 		return np.rad2deg(goal)
 
 	def run(self) -> np.ndarray:
-		print(self.compute(self.angles, self.pos, self.rot).round(2))
+		res = self.compute(self.angles, self.pos, self.rot).round(2)
+		print("\nJoint angles:")
+		print(res)
 
 #%% main
 np.set_printoptions(suppress=True)
-init_joint_angles = [-110, -110, -75, -90, 130, 0]
-tcp_pos = [-118.39, -376.08, 195.88]
-tcp_rot = [0.488, 1.987, 0.438]
+init_joint_angles = [0, 0, 0, 0, 0, 0]
+tcp_pos = [-120, -376, 200]
+tcp_rot = [0, 3.142, 0]
 
 IK_solver = IK(init_joint_angles, tcp_pos, tcp_rot)
 IK_solver.run()
+# %%

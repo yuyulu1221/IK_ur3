@@ -81,7 +81,7 @@ class FK(object):
 
 	def run(self):
 		t_mat = self.fwd_kinematic(self.th)
-		print("Transformation matrix:")
+		print("\nTransformation matrix:")
 		print(t_mat)
 		posture = self.get_posture_diff(t_mat, np.eye(4))
 		print("\nTCP posture:")
